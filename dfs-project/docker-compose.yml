@@ -1,0 +1,13 @@
+services:
+  namenode:
+    build: ./namenode
+    ports:
+      - "8000:8000"
+      - "50051:50051"
+    environment:
+      - BLOCK_SIZE=1024
+      - METADATA_PATH=/data/metadata.json
+      - HEARTBEAT_TIMEOUT_SEC=999999
+      - GRPC_PORT=50051
+    volumes:
+      - ./data/namenode:/data
