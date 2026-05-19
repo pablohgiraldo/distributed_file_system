@@ -1,0 +1,33 @@
+{
+  "users": {
+    "juan": "contrasena123"
+  },
+  "files": {},
+  "datanodes": {
+    "dn1": {
+      "host": "datanode1",
+      "port": 8001,
+      "last_seen": 9999999999,
+      "status": "ALIVE",
+      "free_bytes": 0,
+      "block_ids": []
+    },
+    "dn2": {
+      "host": "datanode2",
+      "port": 8002,
+      "last_seen": 9999999999,
+      "status": "ALIVE",
+      "free_bytes": 0,
+      "block_ids": []
+    },
+    "dn3": {
+      "host": "datanode3",
+      "port": 8003,
+      "last_seen": 9999999999,
+      "status": "ALIVE",
+      "free_bytes": 0,
+      "block_ids": []
+    }
+  },
+  "dirs": []
+}
