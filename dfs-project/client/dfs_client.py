@@ -245,13 +245,45 @@ class DFSClient:
             raise
     
     def ls(self, dfs_path: str) -> List[str]:
-        pass
-    
+        path = dfs_path.lstrip('/')
+        response = self._request("GET", f"/ls/{path}")
+        
+        if response.status_code == 404:
+            raise Exception(f"Directorio {dfs_path} no encontrado")
+        
+        response.raise_for_status()
+        data = response.json()
+        return data.get("entries", [])
+
     def rm(self, dfs_path: str) -> bool:
-        pass
-    
+        path = dfs_path.lstrip('/')
+        response = self._request("DELETE", f"/rm/{path}")
+        
+        if response.status_code == 404:
+            raise Exception(f"Archivo {dfs_path} no encontrado")
+        
+        response.raise_for_status()
+        logger.info(f"Archivo {dfs_path} eliminado")
+        return True
+
     def mkdir(self, dfs_path: str) -> bool:
-        pass
-    
+        response = self._request(
+            "POST",
+            "/mkdir",
+            json={"path": dfs_path, "username": self.username}
+        )
+        
+        if response.status_code == 409:
+            raise Exception(f"Directorio {dfs_path} ya existe")
+        
+        response.raise_for_status()
+        logger.info(f"Directorio {dfs_path} creado")
+        return True
+
     def rmdir(self, dfs_path: str) -> bool:
-        pass
+        entries = self.ls(dfs_path)
+        if entries:
+            raise Exception(f"Directorio {dfs_path} no está vacío")
+        
+        logger.info(f"Directorio {dfs_path} verificado vacío")
+        return True
