@@ -37,7 +37,17 @@ def require_login(ctx):
 @pass_context
 def put(ctx, local_file, dfs_path):
     require_login(ctx)
-    click.echo(f"Subiendo {local_file} -> {dfs_path}")
+
+    try:
+
+        if not dfs_path.startswith('/'):
+            dfs_path = '/' + dfs_path
+
+        ctx.client.upload(local_file, dfs_path)
+        click.secho(f"Archivo subido exitosamente {local_file} -> {dfs_path}")
+    except Exception as e:
+        click.secho(f"✗ Error: {e}", fg='red', err=True)
+        sys.exit(1)
 
 
 @cli.command()
@@ -45,8 +55,16 @@ def put(ctx, local_file, dfs_path):
 @click.argument('local_file')
 @pass_context
 def get(ctx, dfs_path, local_file):
-    click.echo(f"Descargando {dfs_path} -> {local_file}")
-
+    require_login(ctx)
+    
+    try:
+        if not dfs_path.startswith('/'):
+            dfs_path = '/' + dfs_path
+            ctx.client.download(dfs_path, local_file)
+            click.echo(f"Archivo descargado exitosamente {dfs_path} -> {local_file}")
+    except Exception as e:
+        click.secho(f"✗ Error: {e}", fg='red', err=True)
+        sys.exit(1)
 
 @cli.command()
 @click.argument('dfs_path')
