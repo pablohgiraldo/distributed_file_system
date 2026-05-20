@@ -3,6 +3,7 @@ import os
 
 import requests
 from fastapi import FastAPI, HTTPException, Request
+from fastapi.responses import Response
 
 logging.basicConfig(
     level=logging.INFO,
@@ -115,3 +116,26 @@ async def replicate_block(request: Request):
     data = await request.body()
     save_block(block_id, data)
     return {"block_id": block_id, "size": len(data)}
+
+
+# ---------------------------------------------------------------------------
+# Block read / delete endpoints
+# ---------------------------------------------------------------------------
+
+@app.get("/block/{block_id}")
+def read_block(block_id: str):
+    """Return raw block bytes; 404 if missing, 500 if empty/corrupt."""
+    try:
+        data = load_block(block_id)
+    except FileNotFoundError:
+        raise HTTPException(status_code=404, detail=f"block {block_id} not found")
+    except ValueError as exc:
+        raise HTTPException(status_code=500, detail=str(exc))
+    return Response(content=data, media_type="application/octet-stream")
+
+
+@app.delete("/block/{block_id}", status_code=200)
+def remove_block(block_id: str):
+    """Idempotent delete — 200 even if the block did not exist."""
+    delete_block(block_id)
+    return {"block_id": block_id, "deleted": True}
