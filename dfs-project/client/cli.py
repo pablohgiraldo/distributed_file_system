@@ -19,10 +19,16 @@ pass_context = click.make_pass_decorator(Context, ensure=True)
 @click.option('--pass', 'password', required=True, help='Contraseña')
 @pass_context
 def cli(ctx, host, port, username, password):
-    """Sistema de Archivos Distribuido - Cliente CLI"""
     ctx.client = DFSClient(host, port)
     ctx.username = username
     ctx.password = password
+
+def require_login(ctx):
+    try:
+        ctx.client.login(ctx.username, ctx.password)
+    except Exception as e:
+        click.echo(f"Error de autenticacion: {e}", err=True)
+        sys.exit(1)
 
 
 @cli.command()
@@ -30,7 +36,7 @@ def cli(ctx, host, port, username, password):
 @click.argument('dfs_path')
 @pass_context
 def put(ctx, local_file, dfs_path):
-    """Subir archivo LOCAL_FILE a DFS_PATH"""
+    require_login(ctx)
     click.echo(f"Subiendo {local_file} -> {dfs_path}")
 
 
@@ -39,7 +45,6 @@ def put(ctx, local_file, dfs_path):
 @click.argument('local_file')
 @pass_context
 def get(ctx, dfs_path, local_file):
-    """Descargar DFS_PATH a LOCAL_FILE"""
     click.echo(f"Descargando {dfs_path} -> {local_file}")
 
 
@@ -47,7 +52,6 @@ def get(ctx, dfs_path, local_file):
 @click.argument('dfs_path')
 @pass_context
 def ls(ctx, dfs_path):
-    """Listar contenido de DFS_PATH"""
     click.echo(f"Listando {dfs_path}")
 
 
@@ -55,7 +59,6 @@ def ls(ctx, dfs_path):
 @click.argument('dfs_path')
 @pass_context
 def rm(ctx, dfs_path):
-    """Eliminar archivo en DFS_PATH"""
     click.echo(f"Eliminando {dfs_path}")
 
 
@@ -63,7 +66,6 @@ def rm(ctx, dfs_path):
 @click.argument('dfs_path')
 @pass_context
 def mkdir(ctx, dfs_path):
-    """Crear directorio en DFS_PATH"""
     click.echo(f"Creando directorio {dfs_path}")
 
 
@@ -71,7 +73,6 @@ def mkdir(ctx, dfs_path):
 @click.argument('dfs_path')
 @pass_context
 def rmdir(ctx, dfs_path):
-    """Eliminar directorio vacío en DFS_PATH"""
     click.echo(f"Eliminando directorio {dfs_path}")
 
 

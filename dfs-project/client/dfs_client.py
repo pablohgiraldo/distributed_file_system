@@ -47,10 +47,28 @@ class DFSClient:
             return f"http://{host}:{port}"
         return f"http://{node_id}"
     
-    
+
     def login(self, username: str, password: str) -> bool:
-        pass
-    
+        try:
+            response = self._request(
+                "POST",
+                "/login",
+                json={"username": username, "password": password}
+            )
+
+            if response.status_code == 200:
+                self.username = username
+                logger.info(f"Login exitoso como {username}")
+                return True
+            elif response.status_code == 401:
+                raise Exception("Credenciales Invalidas")
+            else:
+                raise Exception(f"Error de autenticacion: {response.status_code}")
+        
+        except requests.RequestException as e:
+            raise Exception(f"Error conectando NameNode: {e}")
+
+
     def upload(self, local_path: str, dfs_path: str) -> bool:
         pass
     
