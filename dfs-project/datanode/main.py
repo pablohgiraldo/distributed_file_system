@@ -1,6 +1,8 @@
 import logging
 import os
+import shutil
 import socket
+import threading
 import time
 
 import grpc
@@ -73,6 +75,40 @@ def register_with_namenode() -> None:
 
 
 register_with_namenode()
+
+
+# ---------------------------------------------------------------------------
+# gRPC — Heartbeat loop
+# ---------------------------------------------------------------------------
+
+_HEARTBEAT_INTERVAL_SEC = 10
+
+
+def _heartbeat_loop() -> None:
+    target = f"{NAMENODE_HOST}:{NAMENODE_GRPC_PORT}"
+    while True:
+        time.sleep(_HEARTBEAT_INTERVAL_SEC)
+        try:
+            free_bytes = shutil.disk_usage(BLOCKS_DIR).free
+            block_ids = list_blocks()
+            with grpc.insecure_channel(target) as channel:
+                stub = dfs_pb2_grpc.NameNodeServiceStub(channel)
+                stub.Heartbeat(
+                    dfs_pb2.HeartbeatRequest(
+                        node_id=NODE_ID,
+                        free_bytes=free_bytes,
+                        block_ids=block_ids,
+                    ),
+                    timeout=5,
+                )
+            logger.debug("heartbeat sent (%d blocks, %d free bytes)", len(block_ids), free_bytes)
+        except grpc.RpcError as exc:
+            logger.error("heartbeat failed: %s", exc.details())
+        except Exception as exc:
+            logger.error("heartbeat error: %s", exc)
+
+
+threading.Thread(target=_heartbeat_loop, daemon=True, name="heartbeat").start()
 
 
 # ---------------------------------------------------------------------------
