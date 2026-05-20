@@ -70,7 +70,22 @@ def get(ctx, dfs_path, local_file):
 @click.argument('dfs_path')
 @pass_context
 def ls(ctx, dfs_path):
-    click.echo(f"Listando {dfs_path}")
+    require_login(ctx)
+    
+    try:
+        entries = ctx.client.ls(dfs_path)
+        
+        if not entries:
+            click.echo("(vacío)")
+        else:
+            for entry in entries:
+                if entry.endswith('/'):
+                    click.secho(entry, fg='cyan', bold=True)
+                else:
+                    click.echo(entry)
+    except Exception as e:
+        click.secho(f"✗ Error: {e}", fg='red', err=True)
+        sys.exit(1)
 
 
 @cli.command()
