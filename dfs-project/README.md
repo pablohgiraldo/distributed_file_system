@@ -120,8 +120,56 @@ environment:
 
 y usar DataNodes reales que envíen heartbeats.
 
+## Arranque completo (NameNode + 3 DataNodes)
+
+```bash
+cd dfs-project
+cp examples/metadata.seed.json data/namenode/metadata.json
+docker compose up --build
+```
+
+Los tres DataNodes se registran automáticamente con el NameNode vía gRPC y envían heartbeat cada 10 segundos.
+
+## Evidencia — DataNode curl
+
+Reemplaza `<BLOCK_ID>` por cualquier identificador (p. ej. `abc123`).
+
+### Escribir un bloque (primario → replica automática)
+
+```bash
+# Escribe el bloque en datanode1 y lo replica a datanode2
+echo -n "hola bloque" | curl -s -X POST http://127.0.0.1:8001/block/abc123 \
+  -H "X-Replica-Host: 127.0.0.1" \
+  -H "X-Replica-Port: 8002" \
+  --data-binary @-
+```
+
+### Leer un bloque
+
+```bash
+curl -s http://127.0.0.1:8001/block/abc123
+# Verificar que también llegó a la réplica:
+curl -s http://127.0.0.1:8002/block/abc123
+```
+
+### Eliminar un bloque
+
+```bash
+curl -s -X DELETE http://127.0.0.1:8001/block/abc123
+# Idempotente: devuelve 200 aunque el bloque no exista
+curl -s -X DELETE http://127.0.0.1:8001/block/abc123
+```
+
+### Health de cada DataNode
+
+```bash
+curl -s http://127.0.0.1:8001/health
+curl -s http://127.0.0.1:8002/health
+curl -s http://127.0.0.1:8003/health
+```
+
 ## Estructura
 
 - `namenode/` — FastAPI + gRPC + hilos de fondo (checker + GC de `PENDING`).
-- `datanode/` 
-- `client/` 
+- `datanode/` — FastAPI + almacenamiento en disco + cliente gRPC (Register + Heartbeat).
+- `client/`
