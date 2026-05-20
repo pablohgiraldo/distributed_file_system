@@ -188,7 +188,7 @@ async def write_block(block_id: str, request: Request):
             )
             raise HTTPException(
                 status_code=500,
-                detail=f"replication failed: {exc}",
+                detail=f"replication failed for block {block_id} to {replica_host}:{replica_port}: {exc}",
             )
 
     return {"block_id": block_id, "size": len(data)}
