@@ -46,7 +46,7 @@ def put(ctx, local_file, dfs_path):
         ctx.client.upload(local_file, dfs_path)
         click.secho(f"Archivo subido exitosamente {local_file} -> {dfs_path}")
     except Exception as e:
-        click.secho(f"✗ Error: {e}", fg='red', err=True)
+        click.secho(f" Error: {e}", fg='red', err=True)
         sys.exit(1)
 
 
@@ -63,7 +63,7 @@ def get(ctx, dfs_path, local_file):
             ctx.client.download(dfs_path, local_file)
             click.echo(f"Archivo descargado exitosamente {dfs_path} -> {local_file}")
     except Exception as e:
-        click.secho(f"✗ Error: {e}", fg='red', err=True)
+        click.secho(f" Error: {e}", fg='red', err=True)
         sys.exit(1)
 
 @cli.command()
@@ -84,7 +84,7 @@ def ls(ctx, dfs_path):
                 else:
                     click.echo(entry)
     except Exception as e:
-        click.secho(f"✗ Error: {e}", fg='red', err=True)
+        click.secho(f" Error: {e}", fg='red', err=True)
         sys.exit(1)
 
 
@@ -92,21 +92,54 @@ def ls(ctx, dfs_path):
 @click.argument('dfs_path')
 @pass_context
 def rm(ctx, dfs_path):
-    click.echo(f"Eliminando {dfs_path}")
+    require_login(ctx)
+    
+    try:
+        if not dfs_path.startswith('/'):
+            dfs_path = '/' + dfs_path
+        
+        ctx.client.rm(dfs_path)
+        click.secho(f" Archivo eliminado", fg='green')
+        
+    except Exception as e:
+        click.secho(f"Error: {e}", fg='red', err=True)
+        sys.exit(1)
 
 
 @cli.command()
 @click.argument('dfs_path')
 @pass_context
 def mkdir(ctx, dfs_path):
-    click.echo(f"Creando directorio {dfs_path}")
+    require_login(ctx)
+    
+    try:
+        if not dfs_path.startswith('/'):
+            dfs_path = '/' + dfs_path
+        
+        ctx.client.mkdir(dfs_path)
+        click.secho(f"Directorio creado", fg='green')
+        
+    except Exception as e:
+        click.secho(f"Error: {e}", fg='red', err=True)
+        sys.exit(1)
 
 
 @cli.command()
 @click.argument('dfs_path')
 @pass_context
 def rmdir(ctx, dfs_path):
-    click.echo(f"Eliminando directorio {dfs_path}")
+    require_login(ctx)
+    
+    try:
+        if not dfs_path.startswith('/'):
+            dfs_path = '/' + dfs_path
+        
+        ctx.client.rmdir(dfs_path)
+        click.secho(f"Directorio verificado vacío", fg='green')
+        
+    except Exception as e:
+        click.secho(f"Error: {e}", fg='red', err=True)
+        sys.exit(1)
 
 
 if __name__ == '__main__':
