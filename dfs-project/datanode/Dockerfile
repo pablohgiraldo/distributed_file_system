@@ -5,6 +5,8 @@ WORKDIR /app
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
+COPY dfs_pb2.py .
+COPY dfs_pb2_grpc.py .
 COPY main.py .
 
 ENV PYTHONUNBUFFERED=1
