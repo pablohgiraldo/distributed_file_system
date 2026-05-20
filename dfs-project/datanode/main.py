@@ -176,7 +176,7 @@ async def write_block(block_id: str, request: Request):
         try:
             resp = requests.post(
                 replica_url,
-                content=data,
+                data=data,
                 headers={"X-Block-Id": block_id},
                 timeout=30,
             )
