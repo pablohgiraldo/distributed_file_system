@@ -1,7 +1,8 @@
 import logging
 import os
 
-from fastapi import FastAPI
+import requests
+from fastapi import FastAPI, HTTPException, Request
 
 logging.basicConfig(
     level=logging.INFO,
@@ -66,3 +67,51 @@ def list_blocks() -> list:
 @app.get("/health")
 def health():
     return {"status": "ok", "node_id": NODE_ID}
+
+
+# ---------------------------------------------------------------------------
+# Block write endpoints
+# ---------------------------------------------------------------------------
+
+@app.post("/block/{block_id}", status_code=200)
+async def write_block(block_id: str, request: Request):
+    """Primary write: save block locally then forward to replica."""
+    replica_host = request.headers.get("X-Replica-Host")
+    replica_port = request.headers.get("X-Replica-Port")
+
+    data = await request.body()
+    save_block(block_id, data)
+
+    if replica_host and replica_port:
+        replica_url = f"http://{replica_host}:{replica_port}/replicate"
+        try:
+            resp = requests.post(
+                replica_url,
+                content=data,
+                headers={"X-Block-Id": block_id},
+                timeout=30,
+            )
+            resp.raise_for_status()
+        except Exception as exc:
+            logger.error(
+                "replication failed for block %s to %s:%s — %s",
+                block_id, replica_host, replica_port, exc,
+            )
+            raise HTTPException(
+                status_code=500,
+                detail=f"replication failed: {exc}",
+            )
+
+    return {"block_id": block_id, "size": len(data)}
+
+
+@app.post("/replicate", status_code=200)
+async def replicate_block(request: Request):
+    """Replica write: save block locally only, no further replication."""
+    block_id = request.headers.get("X-Block-Id")
+    if not block_id:
+        raise HTTPException(status_code=400, detail="X-Block-Id header required")
+
+    data = await request.body()
+    save_block(block_id, data)
+    return {"block_id": block_id, "size": len(data)}
