@@ -7,7 +7,52 @@ services:
     environment:
       - BLOCK_SIZE=1024
       - METADATA_PATH=/data/metadata.json
-      - HEARTBEAT_TIMEOUT_SEC=999999
+      - HEARTBEAT_TIMEOUT_SEC=30
       - GRPC_PORT=50051
     volumes:
       - ./data/namenode:/data
+
+  datanode1:
+    build: ./datanode
+    ports:
+      - "8001:8001"
+    environment:
+      - NODE_ID=dn1
+      - NAMENODE_HOST=namenode
+      - NAMENODE_GRPC_PORT=50051
+      - DATANODE_PORT=8001
+      - BLOCK_SIZE=1024
+    volumes:
+      - ./data/dn1:/blocks
+    depends_on:
+      - namenode
+
+  datanode2:
+    build: ./datanode
+    ports:
+      - "8002:8001"
+    environment:
+      - NODE_ID=dn2
+      - NAMENODE_HOST=namenode
+      - NAMENODE_GRPC_PORT=50051
+      - DATANODE_PORT=8001
+      - BLOCK_SIZE=1024
+    volumes:
+      - ./data/dn2:/blocks
+    depends_on:
+      - namenode
+
+  datanode3:
+    build: ./datanode
+    ports:
+      - "8003:8001"
+    environment:
+      - NODE_ID=dn3
+      - NAMENODE_HOST=namenode
+      - NAMENODE_GRPC_PORT=50051
+      - DATANODE_PORT=8001
+      - BLOCK_SIZE=1024
+    volumes:
+      - ./data/dn3:/blocks
+    depends_on:
+      - namenode
