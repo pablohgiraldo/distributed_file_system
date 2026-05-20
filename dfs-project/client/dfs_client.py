@@ -70,8 +70,112 @@ class DFSClient:
 
 
     def upload(self, local_path: str, dfs_path: str) -> bool:
-        pass
-    
+        from tqdm import tqdm
+        
+        if not os.path.exists(local_path):
+            raise Exception(f"El archivo {local_path} no existe")
+        
+        if not os.path.isfile(local_path):
+            raise Exception(f"{local_path} no es un archivo regular")
+        
+        file_size = os.path.getsize(local_path)
+        
+        logger.info(f"Iniciando upload de {local_path} ({file_size} bytes) a {dfs_path}")
+        
+        try:
+            response = self._request(
+                "POST",
+                "/upload/begin",
+                json={
+                    "filename": dfs_path,
+                    "size": file_size,
+                    "username": self.username
+                }
+            )
+            response.raise_for_status()
+            plan = response.json()
+            blocks = plan["blocks"]
+            block_size = plan.get("block_size", BLOCK_SIZE)
+            
+            logger.info(f"Plan recibido: {len(blocks)} bloques, tamaño bloque={block_size}")
+            
+        except requests.RequestException as e:
+            raise Exception(f"Error al iniciar upload: {e}")
+        
+        success = True
+        try:
+            with open(local_path, 'rb') as f:
+                with tqdm(total=len(blocks), desc="Subiendo bloques", unit="bloque") as pbar:
+                    for block in blocks:
+                        block_id = block["id"]
+                        block_index = block["index"]
+                        primary_node = block["primary"]
+                        replica_node = block["replica"]
+                        
+                        f.seek(block_index * block_size)
+                        data = f.read(block_size)
+                        
+                        primary_url = self._get_datanode_url(primary_node)
+                        url = f"{primary_url}/block/{block_id}"
+                        
+                        headers = {
+                            "X-Replica-Host": self._get_datanode_host(replica_node),
+                            "X-Replica-Port": str(self._get_datanode_port(replica_node))
+                        }
+                        
+                        try:
+                            resp = requests.post(url, data=data, headers=headers, timeout=30)
+                            resp.raise_for_status()
+                            logger.debug(f"Bloque {block_index} (id={block_id}) subido a {primary_node}")
+                        except requests.RequestException as e:
+                            logger.error(f"Fallo al subir bloque {block_index}: {e}")
+                            self._abort_upload(dfs_path)
+                            raise Exception(f"Fallo al subir bloque {block_index}: {e}")
+                        
+                        pbar.update(1)
+            
+            self._confirm_upload(dfs_path)
+            logger.info(f"Upload completado: {file_size} bytes en {len(blocks)} bloques")
+            return True
+            
+        except Exception:
+            try:
+                self._abort_upload(dfs_path)
+            except:
+                pass
+            raise
+
+    def _get_datanode_host(self, node_id: str) -> str:
+        if node_id in DATANODE_MAP:
+            return DATANODE_MAP[node_id][0]
+        return node_id.split(':')[0] if ':' in node_id else node_id
+
+    def _get_datanode_port(self, node_id: str) -> int:
+        if node_id in DATANODE_MAP:
+            return DATANODE_MAP[node_id][1]
+        return int(node_id.split(':')[1]) if ':' in node_id else 8001
+
+    def _confirm_upload(self, dfs_path: str) -> None:
+        response = self._request(
+            "POST",
+            "/upload/confirm",
+            json={"filename": dfs_path, "username": self.username}
+        )
+        response.raise_for_status()
+        logger.info(f"Upload confirmado para {dfs_path}")
+
+    def _abort_upload(self, dfs_path: str) -> None:
+        try:
+            response = self._request(
+                "POST",
+                "/upload/abort",
+                json={"filename": dfs_path, "username": self.username}
+            )
+            response.raise_for_status()
+            logger.info(f"Upload abortado para {dfs_path}")
+        except Exception as e:
+            logger.warning(f"Error al abortar upload: {e}")
+
     def download(self, dfs_path: str, local_path: str) -> bool:
         pass
     
