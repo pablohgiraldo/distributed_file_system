@@ -1,9 +1,15 @@
 import logging
 import os
+import socket
+import time
 
+import grpc
 import requests
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import Response
+
+import dfs_pb2
+import dfs_pb2_grpc
 
 logging.basicConfig(
     level=logging.INFO,
@@ -21,6 +27,52 @@ BLOCKS_DIR = "/blocks"
 os.makedirs(BLOCKS_DIR, exist_ok=True)
 
 app = FastAPI(title=f"DataNode {NODE_ID}")
+
+
+# ---------------------------------------------------------------------------
+# gRPC — Register
+# ---------------------------------------------------------------------------
+
+_MAX_REGISTER_ATTEMPTS = 12
+_REGISTER_RETRY_SEC = 5
+
+
+def register_with_namenode() -> None:
+    """Call NameNode.Register, retrying up to 1 minute on failure."""
+    target = f"{NAMENODE_HOST}:{NAMENODE_GRPC_PORT}"
+    own_host = socket.gethostname()
+
+    for attempt in range(1, _MAX_REGISTER_ATTEMPTS + 1):
+        try:
+            with grpc.insecure_channel(target) as channel:
+                stub = dfs_pb2_grpc.NameNodeServiceStub(channel)
+                resp = stub.Register(
+                    dfs_pb2.RegisterRequest(
+                        node_id=NODE_ID,
+                        host=own_host,
+                        port=DATANODE_PORT,
+                    ),
+                    timeout=5,
+                )
+            if resp.success:
+                logger.info("registered with NameNode as %s", NODE_ID)
+                return
+            logger.warning("NameNode rejected registration (attempt %d)", attempt)
+        except grpc.RpcError as exc:
+            logger.warning(
+                "register attempt %d/%d failed: %s — retrying in %ds",
+                attempt, _MAX_REGISTER_ATTEMPTS, exc.details(), _REGISTER_RETRY_SEC,
+            )
+        time.sleep(_REGISTER_RETRY_SEC)
+
+    logger.critical(
+        "could not register with NameNode after %d attempts — exiting",
+        _MAX_REGISTER_ATTEMPTS,
+    )
+    raise SystemExit(1)
+
+
+register_with_namenode()
 
 
 # ---------------------------------------------------------------------------
